@@ -4,6 +4,7 @@ import { DayTimeline } from "./DayTimeLine";
 import { useTimerEntries } from "./useTimerEntries";
 import { WeekDatePicker } from "./WeekDatePicker";
 import { formatDuration } from "@/lib/time";
+import { useState } from "react";
 
 export default function TimerPage() {
     const {
@@ -19,6 +20,9 @@ export default function TimerPage() {
         handleStart,
         handleStop,
     } = useTimerEntries();
+
+    const [taskNameInput, setTaskNameInput] = useState("");
+
     return (
         <main className="mx-auto max-w-3xl p-6">
             <h1 className="text-2xl font-semibold">Week Calendar</h1>
@@ -28,12 +32,26 @@ export default function TimerPage() {
                 onSelectDate={setSelectedDate}
             />
             <div className="mt-6 flex items-center gap-3">
+                <input
+                    type="text"
+                    value={taskNameInput}
+                    onChange={(e) => setTaskNameInput(e.target.value)}
+                    placeholder="What are you working on?"
+                    className="w-full max-w-xs rounded border border-neutral-300 px-3 py-2 text-sm"
+                    disabled={isSaving || Boolean(runningEntryId)}
+                />
                 <button
                     type="button"
-                    onClick={runningEntryId ? handleStop : handleStart}
+                    onClick={async () => {
+                        if (runningEntryId) {
+                            await handleStop();
+                            return;
+                        }
+                        const started = await handleStart(taskNameInput);
+                        if (started) setTaskNameInput("");
+                    }}
                     disabled={isSaving}
-                    className={`rounded px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${runningEntryId ? "bg-rose-600" : "bg-emerald-600"
-                        }`}
+                    className={`rounded px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${runningEntryId ? "bg-rose-600" : "bg-emerald-600"}`}
                 >
                     {isSaving ? "Saving..." : runningEntryId ? "Stop" : "Start"}
                 </button>

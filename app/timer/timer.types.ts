@@ -2,6 +2,7 @@ export type TimeEntry = {
     id: string;
     startedAt: string;
     endedAt: string | null;
+    taskName: string;
 };
 
 export type CalendarDay = {
@@ -18,4 +19,5 @@ export type TimelineSegment = {
     startedAt: string;
     endedAt: string | null;
     durationSeconds: number;
+    taskName: string;
 };

@@ -9,6 +9,7 @@ type TimeEntryRow = {
     id: string | number;
     started_at: string;
     ended_at: string | null;
+    task_name: string | null;
 };
 export function useTimerEntries() {
     const supabase = useMemo(() => createClient(), []);
@@ -34,7 +35,7 @@ export function useTimerEntries() {
             const weekEnd = `${week[week.length - 1].isoDate}T23:59:59.999`;
             const { data, error } = await supabase
                 .from("time_entries")
-                .select("id, started_at, ended_at")
+                .select("id, started_at, ended_at, task_name")
                 .gte("started_at", weekStart)
                 .lte("started_at", weekEnd)
                 .order("started_at", { ascending: false });
@@ -48,6 +49,7 @@ export function useTimerEntries() {
                 id: String(entry.id),
                 startedAt: entry.started_at,
                 endedAt: entry.ended_at,
+                taskName: entry.task_name ?? "Untitled task",
             }));
             setEntries(loadedEntries);
             const running = loadedEntries.find((entry) => !entry.endedAt);
@@ -56,29 +58,39 @@ export function useTimerEntries() {
         fetchWeekEntries();
     }, [supabase, week]);
 
-    const handleStart = useCallback(async () => {
-        if (runningEntryId) return;
+    const handleStart = useCallback(async (taskName: string): Promise<boolean> => {
+        if (runningEntryId) return false;
+
         setErrorMessage(null);
         setIsSaving(true);
+
         const startedAt = new Date().toISOString();
+        const cleanedTaskName = taskName.trim() || "Untitled task";
+
         const { data, error } = await supabase
             .from("time_entries")
-            .insert({ started_at: startedAt, ended_at: null })
-            .select("id, started_at, ended_at")
+            .insert({ started_at: startedAt, ended_at: null, task_name: taskName })
+            .select("id, started_at, ended_at, task_name")
             .single();
+
         setIsSaving(false);
+
         if (error) {
             setErrorMessage(error.message);
-            return;
+            return false;
         }
+
         const newEntry: TimeEntry = {
             id: String(data.id),
             startedAt: data.started_at,
             endedAt: data.ended_at,
+            taskName: data.task_name ?? cleanedTaskName,
         };
+
         setEntries((previousEntries) => [newEntry, ...previousEntries]);
         setRunningEntryId(newEntry.id);
         setSelectedDate(toLocalIsoDate(newEntry.startedAt));
+        return true;
     }, [runningEntryId, supabase]);
 
     const handleStop = useCallback(async () => {

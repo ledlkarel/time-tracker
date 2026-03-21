@@ -2,10 +2,12 @@ import { formatDuration } from "@/lib/time";
 import { useMemo } from "react";
 import { TimeEntry, TimelineSegment } from "./timer.types";
 import { getMinutesSinceMidnight } from "./timer.utils";
+
 type DayTimelineProps = {
     selectedDate: string;
     entries: TimeEntry[];
 };
+
 export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
     const timelineSegments = useMemo<TimelineSegment[]>(() => {
         const MINUTES_PER_DAY = 24 * 60;
@@ -30,6 +32,7 @@ export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
                     startedAt: entry.startedAt,
                     endedAt: entry.endedAt,
                     durationSeconds,
+                    taskName : entry.taskName
                 };
             })
             .sort((a, b) => a.top - b.top);
@@ -62,7 +65,7 @@ export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
                                         className="absolute left-2 right-3 rounded-md border border-blue-200 bg-blue-100 px-3 py-2 text-sm"
                                         style={{ top: entry.top, height: entry.height }}
                                     >
-                                        <p className="font-medium text-blue-900">Tracked task</p>
+                                        <p className="font-medium text-blue-900">{entry.taskName}</p>
                                         <p className="text-xs text-blue-800">
                                             {new Date(entry.startedAt).toLocaleTimeString(undefined, {
                                                 hour: "2-digit",
