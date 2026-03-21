@@ -24,7 +24,7 @@ export function WeekDatePicker({
                             }`}
                     >
                         <p className="text-xs text-neutral-500">{day.dayLabel}</p>
-                        <p className="mt-1 text-xl font-semibold">{day.dayNumber}</p>
+                        <p className="mt-1 text-xl font-semibold text-neutral-400">{day.dayNumber}</p>
                         {day.isToday ? (
                             <p className="mt-2 text-xs font-medium text-blue-700">Today</p>
                         ) : null}

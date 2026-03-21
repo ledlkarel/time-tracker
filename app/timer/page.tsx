@@ -3,6 +3,7 @@
 import { DayTimeline } from "./DayTimeLine";
 import { useTimerEntries } from "./useTimerEntries";
 import { WeekDatePicker } from "./WeekDatePicker";
+import { formatDuration } from "@/lib/time";
 
 export default function TimerPage() {
     const {
@@ -14,6 +15,7 @@ export default function TimerPage() {
         isLoadingEntries,
         errorMessage,
         runningEntryId,
+        runningDurationSeconds,
         handleStart,
         handleStop,
     } = useTimerEntries();
@@ -35,6 +37,9 @@ export default function TimerPage() {
                 >
                     {isSaving ? "Saving..." : runningEntryId ? "Stop" : "Start"}
                 </button>
+                <p className="font-mono text-sm text-white-700">
+                    {formatDuration(runningDurationSeconds)}
+                </p>
             </div>
             {errorMessage ? (
                 <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">

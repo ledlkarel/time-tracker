@@ -14,6 +14,7 @@ export function useTimerEntries() {
     const supabase = useMemo(() => createClient(), []);
     const week = useMemo(() => getCurrentWeek(), []);
     const today = week.find((day) => day.isToday) ?? week[0];
+    const [nowMs, setNowMs] = useState(() => Date.now());
     const [selectedDate, setSelectedDate] = useState(today.isoDate);
     const [entries, setEntries] = useState<TimeEntry[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -24,6 +25,7 @@ export function useTimerEntries() {
         () => entries.filter((entry) => sameLocalDate(entry.startedAt, selectedDate)),
         [entries, selectedDate]
     );
+
     useEffect(() => {
         const fetchWeekEntries = async () => {
             setIsLoadingEntries(true);
@@ -53,6 +55,7 @@ export function useTimerEntries() {
         };
         fetchWeekEntries();
     }, [supabase, week]);
+
     const handleStart = useCallback(async () => {
         if (runningEntryId) return;
         setErrorMessage(null);
@@ -77,6 +80,7 @@ export function useTimerEntries() {
         setRunningEntryId(newEntry.id);
         setSelectedDate(toLocalIsoDate(newEntry.startedAt));
     }, [runningEntryId, supabase]);
+
     const handleStop = useCallback(async () => {
         if (!runningEntryId) return;
         setErrorMessage(null);
@@ -98,6 +102,27 @@ export function useTimerEntries() {
         );
         setRunningEntryId(null);
     }, [runningEntryId, supabase]);
+
+    const runningEntry = useMemo(
+        () => entries.find((entry) => entry.id === runningEntryId && !entry.endedAt) ?? null,
+        [entries, runningEntryId]
+    );
+
+    const runningDurationSeconds = useMemo(() => {
+        if (!runningEntry) return 0;
+        const startedMs = new Date(runningEntry.startedAt).getTime();
+        return Math.max(0, Math.floor((nowMs - startedMs) / 1000));
+    }, [runningEntry, nowMs]);
+
+    useEffect(() => {
+        if (!runningEntryId) return;
+        setNowMs(Date.now());
+        const intervalId = window.setInterval(() => {
+            setNowMs(Date.now());
+        }, 1000);
+        return () => window.clearInterval(intervalId);
+    }, [runningEntryId]);
+
     return {
         week,
         selectedDate,
@@ -107,6 +132,7 @@ export function useTimerEntries() {
         isLoadingEntries,
         errorMessage,
         runningEntryId,
+        runningDurationSeconds,
         handleStart,
         handleStop,
     };
