@@ -32,7 +32,7 @@ export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
                     startedAt: entry.startedAt,
                     endedAt: entry.endedAt,
                     durationSeconds,
-                    taskName : entry.taskName
+                    taskName: entry.taskName
                 };
             })
             .sort((a, b) => a.top - b.top);
@@ -41,25 +41,25 @@ export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
     return (
         <section className="mt-6">
             <h2 className="text-lg font-semibold">Day timeline for {selectedDate}</h2>
-            {entries.length === 0 ? (
-                <p className="mt-2 text-sm text-neutral-600">No entries yet for this day.</p>
-            ) : (
-                <div className="mt-3 rounded-lg border border-neutral-200 bg-white">
-                    <div className="max-h-[34rem] overflow-y-auto p-3">
-                        <div className="relative" style={{ height: timelineHeight }}>
-                            {Array.from({ length: 25 }, (_, hour) => (
-                                <div
-                                    key={hour}
-                                    className="absolute inset-x-0 border-t border-dashed border-neutral-200"
-                                    style={{ top: hour * 56 }}
-                                >
-                                    <span className="-translate-y-1/2 bg-white pr-2 text-xs text-neutral-500">
-                                        {String(hour).padStart(2, "0")}:00
-                                    </span>
-                                </div>
-                            ))}
-                            <div className="absolute inset-y-0 left-16 right-0">
-                                {timelineSegments.map((entry) => (
+            <div className="mt-3 rounded-lg border border-neutral-200 bg-white">
+                <div className="max-h-[34rem] overflow-y-auto p-3">
+                    <div className="relative" style={{ height: timelineHeight }}>
+                        {Array.from({ length: 25 }, (_, hour) => (
+                            <div
+                                key={hour}
+                                className="absolute inset-x-0 border-t border-dashed border-neutral-200"
+                                style={{ top: hour * 56 }}
+                            >
+                                <span className="-translate-y-1/2 bg-white pr-2 text-xs text-neutral-500">
+                                    {String(hour).padStart(2, "0")}:00
+                                </span>
+                            </div>
+                        ))}
+                        <div className="absolute inset-y-0 left-16 right-0">
+                            {timelineSegments.length === 0 ? (
+                                <p className="mt-2 text-sm text-neutral-500">No entries yet for this day.</p>
+                            ) : (
+                                timelineSegments.map((entry) => (
                                     <article
                                         key={entry.id}
                                         className="absolute left-2 right-3 rounded-md border border-blue-200 bg-blue-100 px-3 py-2 text-sm"
@@ -79,16 +79,14 @@ export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
                                                 })
                                                 : "Running"}
                                         </p>
-                                        <p className="text-xs text-blue-800">
-                                            {formatDuration(entry.durationSeconds)}
-                                        </p>
+                                        <p className="text-xs text-blue-800">{formatDuration(entry.durationSeconds)}</p>
                                     </article>
-                                ))}
-                            </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
         </section>
     );
 }
