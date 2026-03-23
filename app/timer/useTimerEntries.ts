@@ -139,6 +139,7 @@ export function useTimerEntries() {
         week,
         selectedDate,
         setSelectedDate,
+        entries,
         entriesForSelectedDate,
         isSaving,
         isLoadingEntries,

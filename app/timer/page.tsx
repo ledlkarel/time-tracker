@@ -1,17 +1,12 @@
 "use client";
-
-import { DayTimeline } from "./DayTimeLine";
-import { useTimerEntries } from "./useTimerEntries";
-import { WeekDatePicker } from "./WeekDatePicker";
 import { formatDuration } from "@/lib/time";
 import { useState } from "react";
-
+import { WeekTimeline } from "./WeekTimeLine";
+import { useTimerEntries } from "./useTimerEntries";
 export default function TimerPage() {
     const {
         week,
-        selectedDate,
-        setSelectedDate,
-        entriesForSelectedDate,
+        entries,
         isSaving,
         isLoadingEntries,
         errorMessage,
@@ -20,24 +15,17 @@ export default function TimerPage() {
         handleStart,
         handleStop,
     } = useTimerEntries();
-
     const [taskNameInput, setTaskNameInput] = useState("");
-
     return (
-        <main className="mx-auto max-w-3xl p-6">
-            <h1 className="text-2xl font-semibold">Week Calendar</h1>
-            <WeekDatePicker
-                week={week}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-            />
-            <div className="mt-6 flex items-center gap-3">
+        <main className="mx-auto max-w-[1400px] p-6">
+            <h1 className="text-2xl font-semibold">Week Timeline</h1>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
                 <input
                     type="text"
                     value={taskNameInput}
                     onChange={(e) => setTaskNameInput(e.target.value)}
                     placeholder="What are you working on?"
-                    className="w-full max-w-xs rounded border border-neutral-300 px-3 py-2 text-sm"
+                    className="w-full max-w-sm rounded border border-neutral-300 px-3 py-2 text-sm"
                     disabled={isSaving || Boolean(runningEntryId)}
                 />
                 <button
@@ -51,7 +39,8 @@ export default function TimerPage() {
                         if (started) setTaskNameInput("");
                     }}
                     disabled={isSaving}
-                    className={`rounded px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${runningEntryId ? "bg-rose-600" : "bg-emerald-600"}`}
+                    className={`rounded px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${runningEntryId ? "bg-rose-600" : "bg-emerald-600"
+                        }`}
                 >
                     {isSaving ? "Saving..." : runningEntryId ? "Stop" : "Start"}
                 </button>
@@ -67,7 +56,7 @@ export default function TimerPage() {
             {isLoadingEntries ? (
                 <p className="mt-6 text-sm text-neutral-600">Loading entries...</p>
             ) : (
-                <DayTimeline selectedDate={selectedDate} entries={entriesForSelectedDate} />
+                <WeekTimeline week={week} entries={entries} />
             )}
         </main>
     );
