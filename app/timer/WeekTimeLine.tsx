@@ -6,6 +6,66 @@ type WeekTimelineProps = {
     entries: TimeEntry[];
 };
 
+type PositionedEntry = {
+    id: string;
+    taskName: string;
+    top: number;
+    height: number;
+    column: number;
+    totalColumns: number;
+};
+function layoutDayEntries(entries: TimeEntry[]): PositionedEntry[] {
+    const MINUTES_PER_DAY = 24 * 60;
+    const pixelsPerMinute = PIXELS_PER_HOUR / 60;
+    const base = entries
+        .map((entry) => {
+            const start = Math.max(
+                0,
+                Math.min(getMinutesSinceMidnight(entry.startedAt), MINUTES_PER_DAY)
+            );
+            const rawEnd = entry.endedAt
+                ? getMinutesSinceMidnight(entry.endedAt)
+                : getMinutesSinceMidnight(new Date().toISOString());
+            const end = Math.max(start + 1 / 60, Math.min(rawEnd, MINUTES_PER_DAY));
+            return {
+                id: entry.id,
+                taskName: entry.taskName,
+                start,
+                end,
+                top: start * pixelsPerMinute,
+                height: Math.max(18, (end - start) * pixelsPerMinute),
+            };
+        })
+        .sort((a, b) => (a.start - b.start) || (a.end - b.end));
+    const active: Array<{ end: number; column: number }> = [];
+    const clusterMaxCols: Record<number, number> = {};
+    let clusterId = -1;
+    const placed = base.map((item) => {
+
+        for (let i = active.length - 1; i >= 0; i--) {
+            if (active[i].end <= item.start) active.splice(i, 1);
+        }
+
+        if (active.length === 0) clusterId += 1;
+
+        const used = new Set(active.map((a) => a.column));
+        let column = 0;
+        while (used.has(column)) column++;
+        active.push({ end: item.end, column });
+        const concurrent = active.length;
+        clusterMaxCols[clusterId] = Math.max(clusterMaxCols[clusterId] ?? 1, concurrent);
+        return { ...item, column, clusterId };
+    });
+    return placed.map((p) => ({
+        id: p.id,
+        taskName: p.taskName,
+        top: p.top,
+        height: p.height,
+        column: p.column,
+        totalColumns: clusterMaxCols[p.clusterId] ?? 1,
+    }));
+}
+
 const PIXELS_PER_HOUR = 56;
 const DAY_HEIGHT = 24 * PIXELS_PER_HOUR;
 export function WeekTimeline({ week, entries }: WeekTimelineProps) {
@@ -33,6 +93,7 @@ export function WeekTimeline({ week, entries }: WeekTimelineProps) {
                         </div>
                         {week.map((day) => {
                             const dayEntries = entries.filter((e) => sameLocalDate(e.startedAt, day.isoDate));
+                            const positioned = layoutDayEntries(dayEntries);
                             return (
                                 <div key={day.isoDate} className="relative border-l border-neutral-200" style={{ height: DAY_HEIGHT }}>
                                     {Array.from({ length: 25 }, (_, hour) => (
@@ -42,18 +103,19 @@ export function WeekTimeline({ week, entries }: WeekTimelineProps) {
                                             style={{ top: hour * PIXELS_PER_HOUR }}
                                         />
                                     ))}
-                                    {dayEntries.map((entry) => {
-                                        const start = getMinutesSinceMidnight(entry.startedAt);
-                                        const end = entry.endedAt
-                                            ? getMinutesSinceMidnight(entry.endedAt)
-                                            : getMinutesSinceMidnight(new Date().toISOString());
-                                        const top = (start / 60) * PIXELS_PER_HOUR;
-                                        const height = Math.max(18, ((end - start) / 60) * PIXELS_PER_HOUR);
+                                    {positioned.map((entry) => {
+                                        const widthPct = 100 / entry.totalColumns;
+                                        const leftPct = entry.column * widthPct;
                                         return (
                                             <article
                                                 key={entry.id}
-                                                className="absolute left-1 right-1 rounded border border-blue-200 bg-blue-100 px-2 py-1 text-xs"
-                                                style={{ top, height }}
+                                                className="absolute rounded border border-blue-200 bg-blue-100 px-2 py-1 text-xs"
+                                                style={{
+                                                    top: entry.top,
+                                                    height: entry.height,
+                                                    left: `${leftPct}%`,
+                                                    width: `${widthPct}%`,
+                                                }}
                                             >
                                                 <p className="truncate font-medium text-blue-900">{entry.taskName}</p>
                                             </article>
