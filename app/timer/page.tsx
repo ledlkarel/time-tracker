@@ -14,6 +14,8 @@ export default function TimerPage() {
         runningDurationSeconds,
         handleStart,
         handleStop,
+        goToPreviousWeek,
+        goToNextWeek,
     } = useTimerEntries();
     const [taskNameInput, setTaskNameInput] = useState("");
     return (
@@ -47,6 +49,22 @@ export default function TimerPage() {
                 <p className="font-mono text-sm text-white-700">
                     {formatDuration(runningDurationSeconds)}
                 </p>
+                <div>
+                    <button
+                        type="button"
+                        onClick={goToPreviousWeek}
+                        className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
+                    >
+                        ← Previous week
+                    </button>
+                    <button
+                        type="button"
+                        onClick={goToNextWeek}
+                        className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
+                    >
+                        Next week →
+                    </button>
+                </div>
             </div>
             {errorMessage ? (
                 <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">

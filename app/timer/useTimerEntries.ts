@@ -3,7 +3,7 @@
 import { createClient } from "@/src/lib/supabase/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDay, TimeEntry } from "./timer.types";
-import { getCurrentWeek, sameLocalDate, toLocalIsoDate } from "./timer.utils";
+import { getWeekFromDate, sameLocalDate, toLocalIsoDate } from "./timer.utils";
 
 type TimeEntryRow = {
     id: string | number;
@@ -13,7 +13,12 @@ type TimeEntryRow = {
 };
 export function useTimerEntries() {
     const supabase = useMemo(() => createClient(), []);
-    const week = useMemo(() => getCurrentWeek(), []);
+    const [weekOffset, setWeekOffset] = useState(0);
+    const week = useMemo(() => {
+        const base = new Date();
+        base.setDate(base.getDate() + weekOffset * 7);
+        return getWeekFromDate(base);
+    }, [weekOffset]);
     const today = week.find((day) => day.isToday) ?? week[0];
     const [nowMs, setNowMs] = useState(() => Date.now());
     const [selectedDate, setSelectedDate] = useState(today.isoDate);
@@ -22,10 +27,13 @@ export function useTimerEntries() {
     const [isLoadingEntries, setIsLoadingEntries] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [runningEntryId, setRunningEntryId] = useState<string | null>(null);
-    const entriesForSelectedDate = useMemo(
-        () => entries.filter((entry) => sameLocalDate(entry.startedAt, selectedDate)),
-        [entries, selectedDate]
-    );
+
+    const goToPreviousWeek = useCallback(() => {
+        setWeekOffset((prev) => prev - 1);
+    }, []);
+    const goToNextWeek = useCallback(() => {
+        setWeekOffset((prev) => prev + 1);
+    }, []);
 
     useEffect(() => {
         const fetchWeekEntries = async () => {
@@ -140,7 +148,6 @@ export function useTimerEntries() {
         selectedDate,
         setSelectedDate,
         entries,
-        entriesForSelectedDate,
         isSaving,
         isLoadingEntries,
         errorMessage,
@@ -148,5 +155,7 @@ export function useTimerEntries() {
         runningDurationSeconds,
         handleStart,
         handleStop,
+        goToPreviousWeek,
+        goToNextWeek,
     };
 }

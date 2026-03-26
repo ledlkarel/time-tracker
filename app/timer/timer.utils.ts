@@ -1,8 +1,8 @@
 import { CalendarDay } from "./timer.types";
 
-export function getCurrentWeek(): CalendarDay[] {
+export function getWeekFromDate(baseDate: Date): CalendarDay[] {
     const today = new Date();
-    const monday = new Date(today);
+    const monday = new Date(baseDate);
     const dayOfWeek = monday.getDay();
     const daysFromMonday = (dayOfWeek + 6) % 7;
     monday.setDate(monday.getDate() - daysFromMonday);
@@ -16,6 +16,9 @@ export function getCurrentWeek(): CalendarDay[] {
             isToday: day.toDateString() === today.toDateString(),
         };
     });
+}
+export function getCurrentWeek(): CalendarDay[] {
+    return getWeekFromDate(new Date());
 }
 
 export function toLocalIsoDate(value: string): string {
