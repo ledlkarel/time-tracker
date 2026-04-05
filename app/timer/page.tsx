@@ -1,9 +1,15 @@
 "use client";
 import { formatDuration } from "@/lib/time";
-import { useState } from "react";
+import { createClient } from "@/src/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { WeekTimeline } from "./WeekTimeLine";
 import { useTimerEntries } from "./useTimerEntries";
+
 export default function TimerPage() {
+    const supabase = useMemo(() => createClient(), []);
+    const router = useRouter();
+
     const {
         week,
         entries,
@@ -18,6 +24,7 @@ export default function TimerPage() {
         goToNextWeek,
     } = useTimerEntries();
     const [taskNameInput, setTaskNameInput] = useState("");
+
     return (
         <main className="mx-auto max-w-[1400px] p-6">
             <h1 className="text-2xl font-semibold">Week Timeline</h1>
@@ -45,6 +52,17 @@ export default function TimerPage() {
                         }`}
                 >
                     {isSaving ? "Saving..." : runningEntryId ? "Stop" : "Start"}
+                </button>
+                <button
+                    type="button"
+                    onClick={async () => {
+                        await supabase.auth.signOut();
+                        router.push("/login");
+                        router.refresh();
+                    }}
+                    className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50"
+                >
+                    Log out
                 </button>
                 <p className="font-mono text-sm text-white-700">
                     {formatDuration(runningDurationSeconds)}

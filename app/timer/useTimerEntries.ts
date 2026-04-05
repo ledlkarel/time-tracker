@@ -77,7 +77,7 @@ export function useTimerEntries() {
 
         const { data, error } = await supabase
             .from("time_entries")
-            .insert({ started_at: startedAt, ended_at: null, task_name: taskName })
+            .insert({ started_at: startedAt, ended_at: null, task_name: cleanedTaskName })
             .select("id, started_at, ended_at, task_name")
             .single();
 
