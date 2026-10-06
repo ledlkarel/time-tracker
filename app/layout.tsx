@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Time Tracker",
-  description: "App that track time spent on tasks",
+  description: "Track time spent on tasks",
 };
 
 export default function RootLayout({

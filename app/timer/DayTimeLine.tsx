@@ -1,88 +1,33 @@
 import { formatDuration } from "@/lib/time";
-import { useMemo } from "react";
-import { TimeEntry, TimelineSegment } from "./timer.types";
-import { getMinutesSinceMidnight } from "./timer.utils";
+import type { TimeEntry } from "./timer.types";
+import { DAY_HEIGHT, layoutDayEntries, PIXELS_PER_HOUR } from "./timeline.utils";
 
 type DayTimelineProps = {
     selectedDate: string;
     entries: TimeEntry[];
+    nowMs: number;
 };
 
-export function DayTimeline({ selectedDate, entries }: DayTimelineProps) {
-    const timelineSegments = useMemo<TimelineSegment[]>(() => {
-        const MINUTES_PER_DAY = 24 * 60;
-        const PIXELS_PER_HOUR = 56;
-        const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
-        return entries
-            .map((entry) => {
-                const startMinute = getMinutesSinceMidnight(entry.startedAt);
-                const endMinute = entry.endedAt
-                    ? getMinutesSinceMidnight(entry.endedAt)
-                    : getMinutesSinceMidnight(new Date().toISOString());
-                const clampedStart = Math.max(0, Math.min(startMinute, MINUTES_PER_DAY));
-                const clampedEnd = Math.max(
-                    clampedStart + 1 / 60,
-                    Math.min(endMinute, MINUTES_PER_DAY)
-                );
-                const durationSeconds = Math.max(1, Math.floor((clampedEnd - clampedStart) * 60));
-                return {
-                    id: entry.id,
-                    top: clampedStart * PIXELS_PER_MINUTE,
-                    height: (clampedEnd - clampedStart) * PIXELS_PER_MINUTE,
-                    startedAt: entry.startedAt,
-                    endedAt: entry.endedAt,
-                    durationSeconds,
-                    taskName: entry.taskName
-                };
-            })
-            .sort((a, b) => a.top - b.top);
-    }, [entries]);
-    const timelineHeight = 24 * 56;
+export function DayTimeline({ selectedDate, entries, nowMs }: DayTimelineProps) {
+    const segments = layoutDayEntries(entries, selectedDate, nowMs);
     return (
         <section className="mt-6">
             <h2 className="text-lg font-semibold">Day timeline for {selectedDate}</h2>
-            <div className="mt-3 rounded-lg border border-neutral-200 bg-white">
+            <div className="mt-3 rounded-lg border border-neutral-200 bg-white text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
                 <div className="max-h-[34rem] overflow-y-auto p-3">
-                    <div className="relative" style={{ height: timelineHeight }}>
+                    <div className="relative" style={{ height: DAY_HEIGHT }}>
                         {Array.from({ length: 25 }, (_, hour) => (
-                            <div
-                                key={hour}
-                                className="absolute inset-x-0 border-t border-dashed border-neutral-200"
-                                style={{ top: hour * 56 }}
-                            >
-                                <span className="-translate-y-1/2 bg-white pr-2 text-xs text-neutral-500">
-                                    {String(hour).padStart(2, "0")}:00
-                                </span>
+                            <div key={hour} className="absolute inset-x-0 border-t border-dashed border-neutral-200 dark:border-neutral-700" style={{ top: hour * PIXELS_PER_HOUR }}>
+                                <span className="bg-white pr-2 text-xs dark:bg-neutral-900">{String(hour).padStart(2, "0")}:00</span>
                             </div>
                         ))}
-                        <div className="absolute inset-y-0 left-16 right-0">
-                            {timelineSegments.length === 0 ? (
-                                <p className="mt-2 text-sm text-neutral-500">No entries yet for this day.</p>
-                            ) : (
-                                timelineSegments.map((entry) => (
-                                    <article
-                                        key={entry.id}
-                                        className="absolute left-2 right-3 rounded-md border border-blue-200 bg-blue-100 px-3 py-2 text-sm"
-                                        style={{ top: entry.top, height: entry.height }}
-                                    >
-                                        <p className="font-medium text-blue-900">{entry.taskName}</p>
-                                        <p className="text-xs text-blue-800">
-                                            {new Date(entry.startedAt).toLocaleTimeString(undefined, {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                            {" - "}
-                                            {entry.endedAt
-                                                ? new Date(entry.endedAt).toLocaleTimeString(undefined, {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })
-                                                : "Running"}
-                                        </p>
-                                        <p className="text-xs text-blue-800">{formatDuration(entry.durationSeconds)}</p>
-                                    </article>
-                                ))
-                            )}
+                        <div className="absolute inset-y-0 left-16 right-0 overflow-hidden">
+                            {segments.length === 0 ? <p className="mt-2 text-sm">No entries yet for this day.</p> : segments.map((entry) => (
+                                <article key={entry.id} title={`${entry.taskName} — ${formatDuration(entry.durationSeconds)}`} className="absolute overflow-hidden rounded border border-blue-200 bg-blue-100 px-1 text-xs text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100" style={{ top: entry.top, height: entry.height, left: `${entry.column * 100 / entry.totalColumns}%`, width: `${100 / entry.totalColumns}%` }}>
+                                    <p className="truncate font-medium">{entry.taskName}</p>
+                                    {entry.height >= 36 ? <p>{formatDuration(entry.durationSeconds)}{entry.endedAt === null ? " · Running" : ""}</p> : null}
+                                </article>
+                            ))}
                         </div>
                     </div>
                 </div>

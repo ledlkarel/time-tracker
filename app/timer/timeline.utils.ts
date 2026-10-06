@@ -1,0 +1,73 @@
+import type { TimeEntry, TimelineSegment } from "./timer.types";
+import { getDayBounds, getMinutesSinceMidnight } from "./timer.utils";
+
+export const PIXELS_PER_HOUR = 56;
+export const DAY_HEIGHT = 24 * PIXELS_PER_HOUR;
+const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
+const MIN_HEIGHT = 18;
+
+export type PositionedEntry = TimelineSegment & {
+    column: number;
+    totalColumns: number;
+};
+
+// Calendar coordinates use local wall time; durations use elapsed time (including DST).
+export function segmentEntryForDay(
+    entry: TimeEntry,
+    isoDate: string,
+    nowMs: number,
+): TimelineSegment | null {
+    const { start: dayStart, end: dayEnd } = getDayBounds(isoDate);
+    const entryStart = Date.parse(entry.startedAt);
+    const entryEnd = entry.endedAt === null ? nowMs : Date.parse(entry.endedAt);
+    if (!Number.isFinite(entryStart) || !Number.isFinite(entryEnd)) return null;
+
+    const start = Math.max(entryStart, dayStart.getTime());
+    const end = Math.min(entryEnd, dayEnd.getTime());
+    if (end <= start) return null;
+
+    const startedAt = new Date(start).toISOString();
+    const endedAt = new Date(end).toISOString();
+    const startMinute = start === dayStart.getTime() ? 0 : getMinutesSinceMidnight(startedAt);
+    const endMinute = end === dayEnd.getTime() ? 1440 : getMinutesSinceMidnight(endedAt);
+    const height = Math.min(DAY_HEIGHT, Math.max(MIN_HEIGHT, (endMinute - startMinute) * PIXELS_PER_MINUTE));
+    const top = Math.min(startMinute * PIXELS_PER_MINUTE, DAY_HEIGHT - height);
+
+    return {
+        id: entry.id,
+        taskName: entry.taskName,
+        startedAt,
+        endedAt: entry.endedAt === null && end === nowMs ? null : endedAt,
+        durationSeconds: Math.floor((end - start) / 1000),
+        top,
+        height,
+    };
+}
+
+export function layoutDayEntries(entries: TimeEntry[], isoDate: string, nowMs: number): PositionedEntry[] {
+    const segments = entries
+        .map((entry) => segmentEntryForDay(entry, isoDate, nowMs))
+        .filter((segment): segment is TimelineSegment => segment !== null)
+        .sort((a, b) => a.top - b.top || a.height - b.height);
+
+    const active: Array<{ bottom: number; column: number }> = [];
+    const clusterWidths: number[] = [];
+    let cluster = -1;
+    const placed = segments.map((segment) => {
+        // Include minimum rendered heights so short adjacent tasks don't obscure each other.
+        for (let index = active.length - 1; index >= 0; index--) {
+            if (active[index].bottom <= segment.top) active.splice(index, 1);
+        }
+        if (active.length === 0) cluster++;
+        const used = new Set(active.map((item) => item.column));
+        let column = 0;
+        while (used.has(column)) column++;
+        active.push({ bottom: segment.top + segment.height, column });
+        clusterWidths[cluster] = Math.max(clusterWidths[cluster] ?? 1, column + 1);
+        return { ...segment, column, cluster };
+    });
+    return placed.map(({ cluster, ...segment }) => ({
+        ...segment,
+        totalColumns: clusterWidths[cluster],
+    }));
+}

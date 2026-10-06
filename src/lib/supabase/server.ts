@@ -1,12 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseConfig } from "./config";
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
+  const { url, key } = getSupabaseConfig();
 
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
@@ -18,7 +20,7 @@ export async function createServerSupabaseClient() {
               cookieStore.set(name, value, options);
             });
           } catch {
-            
+            // Server Components cannot write cookies; proxy.ts handles session refresh.
           }
         },
       },

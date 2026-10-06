@@ -1,11 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseConfig } from "@/src/lib/supabase/config";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
     let response = NextResponse.next({ request });
+    const { url: supabaseUrl, key } = getSupabaseConfig();
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseUrl,
+        key,
         {
             cookies: {
                 getAll() {
@@ -30,16 +32,20 @@ export async function middleware(request: NextRequest) {
 
     const isLoginPage = request.nextUrl.pathname.startsWith("/login");
     const isTimerPage = request.nextUrl.pathname.startsWith("/timer");
-    
+    const redirectWithCookies = (url: URL) => {
+        const redirect = NextResponse.redirect(url);
+        response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+        return redirect;
+    };
     if (!user && isTimerPage) {
         const url = request.nextUrl.clone();
         url.pathname = "/login";
-        return NextResponse.redirect(url);
+        return redirectWithCookies(url);
     }
     if (user && isLoginPage) {
         const url = request.nextUrl.clone();
         url.pathname = "/timer";
-        return NextResponse.redirect(url);
+        return redirectWithCookies(url);
     }
     return response;
 }
