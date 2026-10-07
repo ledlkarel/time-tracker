@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { formatDuration } from "@/lib/time";
 import type { TimeEntry, CalendarDay } from "./timer.types";
-import { DAY_HEIGHT, layoutDayEntries, PIXELS_PER_HOUR } from "./timeline.utils";
+import { DAY_HEIGHT, getDayTotalSeconds, layoutDayEntries, PIXELS_PER_HOUR } from "./timeline.utils";
 
 type WeekTimelineProps = {
     week: CalendarDay[];
@@ -10,6 +11,10 @@ type WeekTimelineProps = {
 };
 
 export function WeekTimeline({ week, entries, nowMs, onEntrySelect }: WeekTimelineProps) {
+    const dailyTotals = useMemo(
+        () => new Map(week.map((day) => [day.isoDate, getDayTotalSeconds(entries, day.isoDate, nowMs)])),
+        [week, entries, nowMs],
+    );
     return (
         <section aria-label="Weekly time entries" className="mt-6 rounded-lg border border-neutral-200 bg-white text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
             <div className="overflow-x-auto">
@@ -18,8 +23,15 @@ export function WeekTimeline({ week, entries, nowMs, onEntrySelect }: WeekTimeli
                         <div />
                         {week.map((day) => (
                             <div key={day.isoDate} className={`border-b border-neutral-200 px-2 py-2 text-sm font-medium dark:border-neutral-700 ${day.isToday ? "bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200" : ""}`}>
-                                {day.dayLabel} {day.dayNumber}
-                                {day.isToday ? <span className="ml-1 text-xs">Today</span> : null}
+                                <span className="flex items-baseline justify-between gap-2">
+                                    <span>
+                                        {day.dayLabel} {day.dayNumber}
+                                        {day.isToday ? <span className="ml-1 text-xs">Today</span> : null}
+                                    </span>
+                                    <span className="text-xs font-normal tabular-nums text-neutral-600 dark:text-neutral-400" aria-label={`Total ${formatDuration(dailyTotals.get(day.isoDate) ?? 0)}`}>
+                                        {formatDuration(dailyTotals.get(day.isoDate) ?? 0)}
+                                    </span>
+                                </span>
                             </div>
                         ))}
                         <div className="relative" style={{ height: DAY_HEIGHT }}>

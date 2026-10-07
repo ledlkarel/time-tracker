@@ -44,6 +44,13 @@ export function segmentEntryForDay(
     };
 }
 
+export function getDayTotalSeconds(entries: TimeEntry[], isoDate: string, nowMs: number): number {
+    return entries.reduce((total, entry) => {
+        const segment = segmentEntryForDay(entry, isoDate, nowMs);
+        return total + (segment?.durationSeconds ?? 0);
+    }, 0);
+}
+
 export function layoutDayEntries(entries: TimeEntry[], isoDate: string, nowMs: number): PositionedEntry[] {
     const segments = entries
         .map((entry) => segmentEntryForDay(entry, isoDate, nowMs))

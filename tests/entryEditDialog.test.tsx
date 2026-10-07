@@ -84,6 +84,17 @@ it("closes with Escape when it is not saving", () => {
     expect(onClose).toHaveBeenCalledOnce();
 });
 
+it("shows each day's total next to its weekday label", () => {
+    const week = getWeekFromDate(new Date(2026, 9, 5, 12), new Date(2026, 9, 5, 12));
+    const entries: TimeEntry[] = [
+        { id: "entry-1", taskName: "Morning", startedAt: new Date(2026, 9, 5, 9, 0, 0).toISOString(), endedAt: new Date(2026, 9, 5, 10, 30, 0).toISOString() },
+        { id: "entry-2", taskName: "Afternoon", startedAt: new Date(2026, 9, 5, 13, 0, 0).toISOString(), endedAt: new Date(2026, 9, 5, 13, 45, 0).toISOString() },
+    ];
+    render(<WeekTimeline week={week} entries={entries} nowMs={Date.now()} />);
+    expect(screen.getByLabelText("Total 02:15:00")).toBeTruthy();
+    expect(screen.getAllByText("00:00:00")).toHaveLength(6);
+});
+
 it("selects timeline entries with pointer and keyboard input", () => {
     const entry = completedEntry();
     const onEntrySelect = vi.fn();

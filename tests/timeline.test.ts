@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
-import { DAY_HEIGHT, layoutDayEntries, PIXELS_PER_HOUR, segmentEntryForDay } from "@/app/timer/timeline.utils";
+import { DAY_HEIGHT, getDayTotalSeconds, layoutDayEntries, PIXELS_PER_HOUR, segmentEntryForDay } from "@/app/timer/timeline.utils";
 import { fromLocalDateTimeInput, getDayBounds, getWeekBounds, getWeekFromDate, toLocalDateTimeInput, toLocalIsoDate } from "@/app/timer/timer.utils";
 import type { TimeEntry } from "@/app/timer/timer.types";
 
@@ -111,4 +111,38 @@ it("rejects invalid and reversed timestamps rather than rendering corrupt blocks
     process.env.TZ = "UTC";
     expect(segmentEntryForDay(entry("invalid", null), "2026-10-05", Date.now())).toBeNull();
     expect(segmentEntryForDay(entry("2026-10-05T12:00:00Z", "2026-10-05T11:00:00Z"), "2026-10-05", 0)).toBeNull();
+});
+
+it("totals all entries completed on a day", () => {
+    process.env.TZ = "UTC";
+    const totals = getDayTotalSeconds([
+        entry("2026-10-05T09:00:00Z", "2026-10-05T10:30:00Z", "1"),
+        entry("2026-10-05T11:00:00Z", "2026-10-05T11:45:00Z", "2"),
+        entry("2026-10-05T13:00:00Z", "2026-10-06T01:00:00Z", "3"),
+        entry("2026-10-06T08:00:00Z", "2026-10-06T09:00:00Z", "4"),
+        entry("invalid", null, "5"),
+    ], "2026-10-05", Date.parse("2026-10-07T00:00:00Z"));
+    expect(totals).toBe(90 * 60 + 45 * 60 + 11 * 3600);
+});
+
+it("splits overnight entries so each day receives only its own portion", () => {
+    process.env.TZ = "UTC";
+    const overnight = [entry("2026-10-04T23:00:00Z", "2026-10-05T01:00:00Z")];
+    expect(getDayTotalSeconds(overnight, "2026-10-04", 0)).toBe(3600);
+    expect(getDayTotalSeconds(overnight, "2026-10-05", 0)).toBe(3600);
+    expect(getDayTotalSeconds(overnight, "2026-10-06", 0)).toBe(0);
+});
+
+it("includes elapsed time for a running entry up to the supplied clock", () => {
+    process.env.TZ = "UTC";
+    const running = [entry("2026-10-05T08:00:00Z", null)];
+    expect(getDayTotalSeconds(running, "2026-10-05", Date.parse("2026-10-05T10:30:00Z"))).toBe(9000);
+    expect(getDayTotalSeconds(running, "2026-10-05", Date.parse("2026-10-05T12:00:00Z"))).toBe(14400);
+    expect(getDayTotalSeconds(running, "2026-10-06", Date.parse("2026-10-06T02:00:00Z"))).toBe(7200);
+});
+
+it("totals actual elapsed time across a DST transition", () => {
+    process.env.TZ = "America/New_York";
+    const { start, end } = getDayBounds("2026-11-01");
+    expect(getDayTotalSeconds([entry(start.toISOString(), end.toISOString())], "2026-11-01", 0)).toBe(25 * 3600);
 });
