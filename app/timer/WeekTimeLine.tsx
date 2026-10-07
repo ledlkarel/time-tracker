@@ -6,9 +6,10 @@ type WeekTimelineProps = {
     week: CalendarDay[];
     entries: TimeEntry[];
     nowMs: number;
+    onEntrySelect?: (id: string) => void;
 };
 
-export function WeekTimeline({ week, entries, nowMs }: WeekTimelineProps) {
+export function WeekTimeline({ week, entries, nowMs, onEntrySelect }: WeekTimelineProps) {
     return (
         <section aria-label="Weekly time entries" className="mt-6 rounded-lg border border-neutral-200 bg-white text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
             <div className="overflow-x-auto">
@@ -37,7 +38,17 @@ export function WeekTimeline({ week, entries, nowMs }: WeekTimelineProps) {
                                     <article
                                         key={entry.id}
                                         title={`${entry.taskName} — ${formatDuration(entry.durationSeconds)}${entry.endedAt === null ? " (running)" : ""}`}
-                                        className="absolute overflow-hidden rounded border border-blue-200 bg-blue-100 px-1 text-xs text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100"
+                                        role={onEntrySelect ? "button" : undefined}
+                                        tabIndex={onEntrySelect ? 0 : undefined}
+                                        aria-label={onEntrySelect ? `Edit ${entry.taskName}` : undefined}
+                                        onClick={onEntrySelect ? () => onEntrySelect(entry.id) : undefined}
+                                        onKeyDown={onEntrySelect ? (event) => {
+                                            if (event.key === "Enter" || event.key === " ") {
+                                                event.preventDefault();
+                                                onEntrySelect(entry.id);
+                                            }
+                                        } : undefined}
+                                        className={`absolute overflow-hidden rounded border border-blue-200 bg-blue-100 px-1 text-xs text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100 ${onEntrySelect ? "cursor-pointer hover:ring-2 hover:ring-blue-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600" : ""}`}
                                         style={{ top: entry.top, height: entry.height, left: `${entry.column * 100 / entry.totalColumns}%`, width: `${100 / entry.totalColumns}%` }}
                                     >
                                         <p className="truncate font-medium">{entry.taskName}</p>

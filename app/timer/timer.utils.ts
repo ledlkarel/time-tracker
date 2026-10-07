@@ -29,6 +29,42 @@ export function toLocalIsoDate(value: string | Date): string {
     return `${year}-${month}-${day}`;
 }
 
+export function toLocalDateTimeInput(value: string | Date): string {
+    const source = new Date(value);
+    if (!Number.isFinite(source.getTime())) return "";
+    const date = toLocalIsoDate(source);
+    const hours = String(source.getHours()).padStart(2, "0");
+    const minutes = String(source.getMinutes()).padStart(2, "0");
+    const seconds = String(source.getSeconds()).padStart(2, "0");
+    return `${date}T${hours}:${minutes}:${seconds}`;
+}
+
+export function fromLocalDateTimeInput(value: string): string | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(value);
+    if (!match) return null;
+    const [, year, month, day, hours, minutes, seconds = "0", fraction = "0"] = match;
+    const milliseconds = Number(fraction.padEnd(3, "0"));
+    const source = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hours),
+        Number(minutes),
+        Number(seconds),
+        milliseconds,
+    );
+    if (
+        source.getFullYear() !== Number(year)
+        || source.getMonth() !== Number(month) - 1
+        || source.getDate() !== Number(day)
+        || source.getHours() !== Number(hours)
+        || source.getMinutes() !== Number(minutes)
+        || source.getSeconds() !== Number(seconds)
+        || source.getMilliseconds() !== milliseconds
+    ) return null;
+    return source.toISOString();
+}
+
 export function sameLocalDate(isoDateTime: string, isoDate: string): boolean {
     return toLocalIsoDate(isoDateTime) === isoDate;
 }

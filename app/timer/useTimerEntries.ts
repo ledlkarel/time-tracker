@@ -276,6 +276,85 @@ export function useTimerEntries() {
         }
     }, [supabase, userId]);
 
+    const handleEdit = useCallback(async (
+        id: string,
+        changes: { startedAt: string; endedAt: string | null; taskName: string },
+    ): Promise<boolean> => {
+        const sourceEntry = activeEntry.current?.id === id
+            ? activeEntry.current
+            : entries.find((entry) => entry.id === id);
+        const startedMs = Date.parse(changes.startedAt);
+        const endedMs = changes.endedAt === null ? null : Date.parse(changes.endedAt);
+        if (!userId || owner.current !== userId || readyOwner.current !== userId || !sourceEntry || mutationPending.current) return false;
+        if (!Number.isFinite(startedMs)) {
+            setSaveError("Could not edit entry: Enter a valid start date and time.");
+            return false;
+        }
+        if (changes.endedAt !== null && !Number.isFinite(endedMs)) {
+            setSaveError("Could not edit entry: Enter a valid end date and time.");
+            return false;
+        }
+        if (sourceEntry.endedAt && changes.endedAt === null) {
+            setSaveError("Could not edit entry: A completed entry must keep an end time.");
+            return false;
+        }
+        if (endedMs !== null && endedMs < startedMs) {
+            setSaveError("Could not edit entry: End time cannot be before the start time.");
+            return false;
+        }
+        if (changes.endedAt === null && startedMs > Date.now()) {
+            setSaveError("Could not edit entry: A running entry cannot start in the future.");
+            return false;
+        }
+
+        mutationPending.current = true;
+        revision.current++;
+        readyOwner.current = null;
+        setActiveLoadedFor(null);
+        setSaveError(null);
+        setIsSaving(true);
+        try {
+            const { data, error } = await supabase.from("time_entries")
+                .update({
+                    started_at: changes.startedAt,
+                    ended_at: changes.endedAt,
+                    task_name: changes.taskName.trim() || "Untitled task",
+                })
+                .eq("id", id)
+                .eq("user_id", userId)
+                .select(ENTRY_COLUMNS)
+                .maybeSingle();
+            if (!mounted.current || owner.current !== userId) return false;
+            if (error) throw new Error(error.message);
+            if (!data) throw new Error("The entry was not found or is no longer available.");
+            const edited = toEntry(data as TimeEntryRow);
+            setEntries((previous) => previous.map((entry) => entry.id === edited.id ? edited : entry));
+            if (activeEntry.current?.id === edited.id) {
+                if (edited.endedAt) {
+                    activeEntry.current = null;
+                    setRunningEntry(null);
+                } else {
+                    activeEntry.current = edited;
+                    setRunningEntry(edited);
+                    setNowMs(Date.now());
+                }
+            }
+            return true;
+        } catch (error) {
+            if (mounted.current && owner.current === userId) setSaveError(`Could not edit entry: ${errorText(error)}`);
+            return false;
+        } finally {
+            revision.current++;
+            readyOwner.current = null;
+            mutationPending.current = false;
+            if (mounted.current) {
+                setActiveLoadedFor(null);
+                setIsSaving(false);
+                setReload((value) => value + 1);
+            }
+        }
+    }, [entries, supabase, userId]);
+
     const runningDurationSeconds = runningEntry
         ? Math.max(0, Math.floor((nowMs - Date.parse(runningEntry.startedAt)) / 1000))
         : 0;
@@ -293,6 +372,7 @@ export function useTimerEntries() {
         runningDurationSeconds,
         handleStart,
         handleStop,
+        handleEdit,
         refreshEntries,
         goToPreviousWeek: () => setWeekOffset((value) => value - 1),
         goToNextWeek: () => setWeekOffset((value) => value + 1),

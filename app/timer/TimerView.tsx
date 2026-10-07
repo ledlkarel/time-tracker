@@ -2,7 +2,8 @@
 import { formatDuration } from "@/lib/time";
 import { createClient } from "@/src/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EntryEditDialog } from "./EntryEditDialog";
 import { WeekTimeline } from "./WeekTimeLine";
 import { useTimerEntries } from "./useTimerEntries";
 
@@ -13,6 +14,7 @@ export function TimerView() {
     const [taskNameInput, setTaskNameInput] = useState("");
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [logoutError, setLogoutError] = useState<string | null>(null);
+    const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
     const logoutPending = useRef(false);
 
     useEffect(() => {
@@ -40,6 +42,8 @@ export function TimerView() {
         }
     };
     const errorMessage = logoutError ?? timer.errorMessage;
+    const editingEntry = timer.entries.find((entry) => entry.id === editingEntryId) ?? null;
+    const closeEditor = useCallback(() => setEditingEntryId(null), []);
 
     return (
         <main className="mx-auto max-w-[1400px] p-6">
@@ -92,13 +96,24 @@ export function TimerView() {
                 <button type="button" onClick={timer.goToCurrentWeek} className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800">This week</button>
                 <button type="button" onClick={timer.goToNextWeek} className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800">Next week →</button>
             </nav>
+            <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">Select a time block to edit its title, start time, or end time.</p>
             {errorMessage ? (
                 <div role="alert" className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
                     <p>{errorMessage}</p>
                     {!logoutError ? <button type="button" onClick={timer.refreshEntries} disabled={timer.isSaving} className="mt-2 underline disabled:opacity-50">Retry loading entries</button> : null}
                 </div>
             ) : null}
-            {timer.isLoadingEntries ? <p role="status" className="mt-6 text-sm text-neutral-600 dark:text-neutral-400">Loading entries...</p> : <WeekTimeline week={timer.week} entries={timer.entries} nowMs={timer.nowMs} />}
+            {timer.isLoadingEntries ? <p role="status" className="mt-6 text-sm text-neutral-600 dark:text-neutral-400">Loading entries...</p> : <WeekTimeline week={timer.week} entries={timer.entries} nowMs={timer.nowMs} onEntrySelect={setEditingEntryId} />}
+            {editingEntry ? (
+                <EntryEditDialog
+                    key={editingEntry.id}
+                    entry={editingEntry}
+                    nowMs={timer.nowMs}
+                    isSaving={timer.isSaving}
+                    onClose={closeEditor}
+                    onSave={timer.handleEdit}
+                />
+            ) : null}
         </main>
     );
 }

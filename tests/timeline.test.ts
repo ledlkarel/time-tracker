@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
 import { DAY_HEIGHT, layoutDayEntries, PIXELS_PER_HOUR, segmentEntryForDay } from "@/app/timer/timeline.utils";
-import { getDayBounds, getWeekBounds, getWeekFromDate, toLocalIsoDate } from "@/app/timer/timer.utils";
+import { fromLocalDateTimeInput, getDayBounds, getWeekBounds, getWeekFromDate, toLocalDateTimeInput, toLocalIsoDate } from "@/app/timer/timer.utils";
 import type { TimeEntry } from "@/app/timer/timer.types";
 
 const originalTZ = process.env.TZ;
@@ -38,6 +38,21 @@ it("handles a Sunday in a week crossing the year boundary", () => {
     const week = getWeekFromDate(new Date("2027-01-03T12:00:00Z"));
     expect(week[0].isoDate).toBe("2026-12-28");
     expect(week[6].isoDate).toBe("2027-01-03");
+});
+
+it("round-trips local datetime input values", () => {
+    process.env.TZ = "America/New_York";
+    const source = "2026-10-05T14:23:45-04:00";
+    const input = toLocalDateTimeInput(source);
+    expect(input).toBe("2026-10-05T14:23:45");
+    expect(fromLocalDateTimeInput(input)).toBe("2026-10-05T18:23:45.000Z");
+});
+
+it("rejects invalid and nonexistent local datetime input values", () => {
+    process.env.TZ = "America/New_York";
+    expect(fromLocalDateTimeInput("not-a-date")).toBeNull();
+    expect(fromLocalDateTimeInput("2026-02-30T10:00:00")).toBeNull();
+    expect(fromLocalDateTimeInput("2026-03-08T02:30:00")).toBeNull();
 });
 
 it("splits overnight entries and excludes days that only touch a boundary", () => {

@@ -154,6 +154,141 @@ it("does not claim Stop succeeded if no owned running row was updated", async ()
     expect(update.filters).toEqual({ id: "timer-1", user_id: "user-1", ended_at: null });
 });
 
+it("edits a completed entry with an ownership filter", async () => {
+    const startedAt = new Date(Date.now() - 7200000).toISOString();
+    const completed: Row = { id: "completed-1", started_at: startedAt, ended_at: new Date(Date.now() - 3600000).toISOString(), task_name: "Old title" };
+    weekRows = [completed];
+    const read = respond.getMockImplementation()!;
+    respond.mockImplementation((request) => {
+        if (request.kind === "update") {
+            weekRows = [{ ...completed, started_at: request.values!.started_at as string, ended_at: request.values!.ended_at as string, task_name: request.values!.task_name as string }];
+            return { data: weekRows[0], error: null };
+        }
+        return read(request);
+    });
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe("completed-1"));
+    const nextStart = new Date(Date.now() - 5400000).toISOString();
+    await act(async () => {
+        expect(await result.current.handleEdit("completed-1", { startedAt: nextStart, endedAt: completed.ended_at, taskName: " Updated title " })).toBe(true);
+    });
+    await waitFor(() => expect(result.current.entries[0]?.taskName).toBe("Updated title"));
+    expect(result.current.entries[0].startedAt).toBe(nextStart);
+    const update = respond.mock.calls.find(([request]) => request.kind === "update")![0];
+    expect(update.filters).toEqual({ id: "completed-1", user_id: "user-1" });
+    expect(update.values).toEqual({ started_at: nextStart, ended_at: completed.ended_at, task_name: "Updated title" });
+});
+
+it("edits a running entry and recalculates its duration", async () => {
+    active = runningRow();
+    weekRows = [active];
+    const read = respond.getMockImplementation()!;
+    respond.mockImplementation((request) => {
+        if (request.kind === "update") {
+            active = { ...active!, started_at: request.values!.started_at as string, ended_at: request.values!.ended_at as string | null, task_name: request.values!.task_name as string };
+            weekRows = [active];
+            return { data: active, error: null };
+        }
+        return read(request);
+    });
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.runningEntryId).toBe("timer-1"));
+    const nextStart = new Date(Date.now() - 7200000).toISOString();
+    await act(async () => {
+        expect(await result.current.handleEdit("timer-1", { startedAt: nextStart, endedAt: null, taskName: "Running edit" })).toBe(true);
+    });
+    expect(result.current.runningDurationSeconds).toBeGreaterThanOrEqual(7199);
+    await waitFor(() => expect(result.current.entries[0]?.taskName).toBe("Running edit"));
+});
+
+it("stops a running entry at a custom end time through edit", async () => {
+    active = runningRow();
+    weekRows = [active];
+    const read = respond.getMockImplementation()!;
+    respond.mockImplementation((request) => {
+        if (request.kind === "update") {
+            const stopped = { ...active!, ended_at: request.values!.ended_at as string };
+            active = null;
+            weekRows = [stopped];
+            return { data: stopped, error: null };
+        }
+        return read(request);
+    });
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.runningEntryId).toBe("timer-1"));
+    const endedAt = new Date(Date.now() - 60000).toISOString();
+    await act(async () => {
+        expect(await result.current.handleEdit("timer-1", { startedAt: active!.started_at, endedAt, taskName: "Stopped manually" })).toBe(true);
+    });
+    expect(result.current.runningEntryId).toBeNull();
+    expect(result.current.runningDurationSeconds).toBe(0);
+    await waitFor(() => expect(result.current.isTimerReady).toBe(true));
+    expect(result.current.entries[0].endedAt).toBe(endedAt);
+});
+
+it("rejects invalid edit times before sending an update", async () => {
+    active = runningRow();
+    weekRows = [active];
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.runningEntryId).toBe("timer-1"));
+    await act(async () => {
+        expect(await result.current.handleEdit("timer-1", { startedAt: "invalid", endedAt: null, taskName: "Task" })).toBe(false);
+        expect(await result.current.handleEdit("timer-1", { startedAt: new Date(Date.now() + 3600000).toISOString(), endedAt: null, taskName: "Task" })).toBe(false);
+    });
+    expect(respond.mock.calls.some(([request]) => request.kind === "update")).toBe(false);
+    expect(result.current.errorMessage).toContain("cannot start in the future");
+});
+
+it("rejects clearing or reversing a completed end time", async () => {
+    const completed: Row = { id: "completed-1", started_at: new Date(Date.now() - 7200000).toISOString(), ended_at: new Date(Date.now() - 3600000).toISOString(), task_name: "Task" };
+    weekRows = [completed];
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe("completed-1"));
+    await act(async () => {
+        expect(await result.current.handleEdit("completed-1", { startedAt: completed.started_at, endedAt: null, taskName: "Task" })).toBe(false);
+        expect(await result.current.handleEdit("completed-1", { startedAt: completed.started_at, endedAt: new Date(Date.parse(completed.started_at) - 1000).toISOString(), taskName: "Task" })).toBe(false);
+    });
+    expect(respond.mock.calls.some(([request]) => request.kind === "update")).toBe(false);
+    expect(result.current.errorMessage).toContain("End time cannot be before the start time");
+});
+
+it("allows a future end time through edit", async () => {
+    const completed: Row = { id: "completed-1", started_at: new Date(Date.now() - 7200000).toISOString(), ended_at: new Date(Date.now() - 3600000).toISOString(), task_name: "Task" };
+    weekRows = [completed];
+    const read = respond.getMockImplementation()!;
+    respond.mockImplementation((request) => {
+        if (request.kind === "update") {
+            const updated = { ...completed, ended_at: request.values!.ended_at as string };
+            weekRows = [updated];
+            return { data: updated, error: null };
+        }
+        return read(request);
+    });
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe("completed-1"));
+    const futureEnd = new Date(Date.now() + 3600000).toISOString();
+    await act(async () => {
+        expect(await result.current.handleEdit("completed-1", { startedAt: completed.started_at, endedAt: futureEnd, taskName: "Task" })).toBe(true);
+    });
+    await waitFor(() => expect(result.current.entries[0]?.endedAt).toBe(futureEnd));
+    expect(respond.mock.calls.find(([request]) => request.kind === "update")![0].values).toEqual({ started_at: completed.started_at, ended_at: futureEnd, task_name: "Task" });
+});
+
+it("keeps an entry unchanged when an edit updates no owned row", async () => {
+    const completed: Row = { id: "completed-1", started_at: new Date(Date.now() - 7200000).toISOString(), ended_at: new Date(Date.now() - 3600000).toISOString(), task_name: "Original" };
+    weekRows = [completed];
+    const read = respond.getMockImplementation()!;
+    respond.mockImplementation((request) => request.kind === "update" ? { data: null, error: null } : read(request));
+    const { result } = renderHook(useTimerEntries);
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe("completed-1"));
+    await act(async () => {
+        expect(await result.current.handleEdit("completed-1", { startedAt: completed.started_at, endedAt: completed.ended_at, taskName: "Changed" })).toBe(false);
+    });
+    expect(result.current.entries[0].taskName).toBe("Original");
+    expect(result.current.errorMessage).toContain("not found");
+    expect(result.current.isSaving).toBe(false);
+});
+
 it("blocks a second start even through a stale handler after the first resolves", async () => {
     const read = respond.getMockImplementation()!;
     respond.mockImplementation((request) => {

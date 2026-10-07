@@ -6,9 +6,10 @@ type DayTimelineProps = {
     selectedDate: string;
     entries: TimeEntry[];
     nowMs: number;
+    onEntrySelect?: (id: string) => void;
 };
 
-export function DayTimeline({ selectedDate, entries, nowMs }: DayTimelineProps) {
+export function DayTimeline({ selectedDate, entries, nowMs, onEntrySelect }: DayTimelineProps) {
     const segments = layoutDayEntries(entries, selectedDate, nowMs);
     return (
         <section className="mt-6">
@@ -23,7 +24,12 @@ export function DayTimeline({ selectedDate, entries, nowMs }: DayTimelineProps) 
                         ))}
                         <div className="absolute inset-y-0 left-16 right-0 overflow-hidden">
                             {segments.length === 0 ? <p className="mt-2 text-sm">No entries yet for this day.</p> : segments.map((entry) => (
-                                <article key={entry.id} title={`${entry.taskName} — ${formatDuration(entry.durationSeconds)}`} className="absolute overflow-hidden rounded border border-blue-200 bg-blue-100 px-1 text-xs text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100" style={{ top: entry.top, height: entry.height, left: `${entry.column * 100 / entry.totalColumns}%`, width: `${100 / entry.totalColumns}%` }}>
+                                <article key={entry.id} title={`${entry.taskName} — ${formatDuration(entry.durationSeconds)}`} role={onEntrySelect ? "button" : undefined} tabIndex={onEntrySelect ? 0 : undefined} aria-label={onEntrySelect ? `Edit ${entry.taskName}` : undefined} onClick={onEntrySelect ? () => onEntrySelect(entry.id) : undefined} onKeyDown={onEntrySelect ? (event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        onEntrySelect(entry.id);
+                                    }
+                                } : undefined} className={`absolute overflow-hidden rounded border border-blue-200 bg-blue-100 px-1 text-xs text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100 ${onEntrySelect ? "cursor-pointer hover:ring-2 hover:ring-blue-500 focus-visible:outline-2 focus-visible:outline-blue-600" : ""}`} style={{ top: entry.top, height: entry.height, left: `${entry.column * 100 / entry.totalColumns}%`, width: `${100 / entry.totalColumns}%` }}>
                                     <p className="truncate font-medium">{entry.taskName}</p>
                                     {entry.height >= 36 ? <p>{formatDuration(entry.durationSeconds)}{entry.endedAt === null ? " · Running" : ""}</p> : null}
                                 </article>
