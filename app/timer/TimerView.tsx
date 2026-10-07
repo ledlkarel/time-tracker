@@ -43,7 +43,32 @@ export function TimerView() {
 
     return (
         <main className="mx-auto max-w-[1400px] p-6">
-            <h1 className="text-2xl font-semibold">Week Timeline</h1>
+            <header className="flex items-start justify-between gap-4">
+                <h1 className="text-2xl font-semibold">Week Timeline</h1>
+                <button
+                    type="button"
+                    onClick={logOut}
+                    disabled={isLoggingOut || timer.isSaving}
+                    className="inline-flex shrink-0 items-center gap-2 rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                >
+                    <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <path d="m16 17 5-5-5-5M21 12H9" />
+                    </svg>
+                    {isLoggingOut ? "Logging out..." : "Log out"}
+                </button>
+            </header>
             <form className="mt-6 flex flex-wrap items-end gap-3" onSubmit={async (event) => {
                 event.preventDefault();
                 if (isLoggingOut || timer.isSaving || !timer.isTimerReady) return;
@@ -59,9 +84,6 @@ export function TimerView() {
                 </div>
                 <button type="submit" disabled={timer.isSaving || isLoggingOut || !timer.isTimerReady} className={`rounded px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 ${timer.runningEntryId ? "bg-rose-600" : "bg-emerald-600"}`}>
                     {timer.isSaving ? "Saving..." : timer.runningEntryId ? "Stop" : timer.isTimerReady ? "Start" : "Checking timer..."}
-                </button>
-                <button type="button" onClick={logOut} disabled={isLoggingOut || timer.isSaving} className="rounded border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800">
-                    {isLoggingOut ? "Logging out..." : "Log out"}
                 </button>
                 <p aria-label="Running timer duration" className="py-2 font-mono text-sm">{formatDuration(timer.runningDurationSeconds)}</p>
             </form>
