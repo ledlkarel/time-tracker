@@ -3,7 +3,6 @@ import { getDayBounds, getMinutesSinceMidnight } from "./timer.utils";
 
 export const PIXELS_PER_HOUR = 56;
 export const DAY_HEIGHT = 24 * PIXELS_PER_HOUR;
-const PIXELS_PER_MINUTE = PIXELS_PER_HOUR / 60;
 const MIN_HEIGHT = 18;
 
 export type PositionedEntry = TimelineSegment & {
@@ -16,6 +15,7 @@ export function segmentEntryForDay(
     entry: TimeEntry,
     isoDate: string,
     nowMs: number,
+    pixelsPerHour = PIXELS_PER_HOUR,
 ): TimelineSegment | null {
     const { start: dayStart, end: dayEnd } = getDayBounds(isoDate);
     const entryStart = Date.parse(entry.startedAt);
@@ -30,8 +30,10 @@ export function segmentEntryForDay(
     const endedAt = new Date(end).toISOString();
     const startMinute = start === dayStart.getTime() ? 0 : getMinutesSinceMidnight(startedAt);
     const endMinute = end === dayEnd.getTime() ? 1440 : getMinutesSinceMidnight(endedAt);
-    const height = Math.min(DAY_HEIGHT, Math.max(MIN_HEIGHT, (endMinute - startMinute) * PIXELS_PER_MINUTE));
-    const top = Math.min(startMinute * PIXELS_PER_MINUTE, DAY_HEIGHT - height);
+    const dayHeight = 24 * pixelsPerHour;
+    const pixelsPerMinute = pixelsPerHour / 60;
+    const height = Math.min(dayHeight, Math.max(MIN_HEIGHT, (endMinute - startMinute) * pixelsPerMinute));
+    const top = Math.min(startMinute * pixelsPerMinute, dayHeight - height);
 
     return {
         id: entry.id,
@@ -51,9 +53,9 @@ export function getDayTotalSeconds(entries: TimeEntry[], isoDate: string, nowMs:
     }, 0);
 }
 
-export function layoutDayEntries(entries: TimeEntry[], isoDate: string, nowMs: number): PositionedEntry[] {
+export function layoutDayEntries(entries: TimeEntry[], isoDate: string, nowMs: number, pixelsPerHour = PIXELS_PER_HOUR): PositionedEntry[] {
     const segments = entries
-        .map((entry) => segmentEntryForDay(entry, isoDate, nowMs))
+        .map((entry) => segmentEntryForDay(entry, isoDate, nowMs, pixelsPerHour))
         .filter((segment): segment is TimelineSegment => segment !== null)
         .sort((a, b) => a.top - b.top || a.height - b.height);
 

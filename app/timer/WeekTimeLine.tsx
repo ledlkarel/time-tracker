@@ -1,7 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatDuration } from "@/lib/time";
 import type { TimeEntry, CalendarDay } from "./timer.types";
-import { DAY_HEIGHT, getDayTotalSeconds, layoutDayEntries, PIXELS_PER_HOUR } from "./timeline.utils";
+import { getDayTotalSeconds, layoutDayEntries } from "./timeline.utils";
+
+const HOURS = Array.from({ length: 13 }, (_, index) => index * 2);
+const MIN_DAY_HEIGHT = 240;
 
 type WeekTimelineProps = {
     week: CalendarDay[];
@@ -11,12 +14,50 @@ type WeekTimelineProps = {
 };
 
 export function WeekTimeline({ week, entries, nowMs, onEntrySelect }: WeekTimelineProps) {
+    const sectionRef = useRef<HTMLElement>(null);
+    const gutterRef = useRef<HTMLDivElement>(null);
+    const [dayHeight, setDayHeight] = useState(640);
+    const pixelsPerHour = dayHeight / 24;
+
+    useEffect(() => {
+        const section = sectionRef.current;
+        const gutter = gutterRef.current;
+        const parent = section?.parentElement;
+        if (!section || !gutter || !parent) return;
+
+        const measure = () => {
+            const gutterBounds = gutter.getBoundingClientRect();
+            // Include section padding, horizontal scrollbar, and the page's bottom padding.
+            const bottomSpace = section.getBoundingClientRect().bottom - gutterBounds.bottom
+                + (parseFloat(getComputedStyle(parent).paddingBottom) || 0);
+            const top = gutterBounds.top + window.scrollY;
+            setDayHeight(Math.max(MIN_DAY_HEIGHT, Math.floor(window.innerHeight - top - bottomSpace - 1)));
+        };
+
+        let frame = 0;
+        const scheduleMeasure = () => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(measure);
+        };
+        scheduleMeasure();
+        window.addEventListener("resize", scheduleMeasure);
+        // Re-measure when controls wrap or an error message changes the available space.
+        const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleMeasure);
+        observer?.observe(parent);
+
+        return () => {
+            window.removeEventListener("resize", scheduleMeasure);
+            observer?.disconnect();
+            cancelAnimationFrame(frame);
+        };
+    }, []);
+
     const dailyTotals = useMemo(
         () => new Map(week.map((day) => [day.isoDate, getDayTotalSeconds(entries, day.isoDate, nowMs)])),
         [week, entries, nowMs],
     );
     return (
-        <section aria-label="Weekly time entries" className="mt-6 rounded-lg border border-neutral-200 bg-white text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
+        <section ref={sectionRef} aria-label="Weekly time entries" className="mt-6 rounded-lg border border-neutral-200 bg-white text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100">
             <div className="overflow-x-auto">
                 <div className="min-w-[980px] p-3">
                     <div className="grid grid-cols-[64px_repeat(7,minmax(120px,1fr))] gap-0">
@@ -34,19 +75,19 @@ export function WeekTimeline({ week, entries, nowMs, onEntrySelect }: WeekTimeli
                                 </span>
                             </div>
                         ))}
-                        <div className="relative" style={{ height: DAY_HEIGHT }}>
-                            {Array.from({ length: 25 }, (_, hour) => (
-                                <div key={hour} className="absolute right-2 -translate-y-1/2 text-xs" style={{ top: hour * PIXELS_PER_HOUR }}>
+                        <div ref={gutterRef} className="relative" style={{ height: dayHeight }}>
+                            {HOURS.map((hour) => (
+                                <div key={hour} className="absolute right-2 -translate-y-1/2 text-xs" style={{ top: hour * pixelsPerHour }}>
                                     {String(hour).padStart(2, "0")}:00
                                 </div>
                             ))}
                         </div>
                         {week.map((day) => (
-                            <div key={day.isoDate} className="relative overflow-hidden border-l border-neutral-200 dark:border-neutral-700" style={{ height: DAY_HEIGHT }}>
-                                {Array.from({ length: 25 }, (_, hour) => (
-                                    <div key={hour} className="absolute inset-x-0 border-t border-dashed border-neutral-200 dark:border-neutral-700" style={{ top: hour * PIXELS_PER_HOUR }} />
+                            <div key={day.isoDate} className="relative overflow-hidden border-l border-neutral-200 dark:border-neutral-700" style={{ height: dayHeight }}>
+                                {HOURS.map((hour) => (
+                                    <div key={hour} className="absolute inset-x-0 border-t border-dashed border-neutral-200 dark:border-neutral-700" style={{ top: hour * pixelsPerHour }} />
                                 ))}
-                                {layoutDayEntries(entries, day.isoDate, nowMs).map((entry) => (
+                                {layoutDayEntries(entries, day.isoDate, nowMs, pixelsPerHour).map((entry) => (
                                     <article
                                         key={entry.id}
                                         title={`${entry.taskName} — ${formatDuration(entry.durationSeconds)}${entry.endedAt === null ? " (running)" : ""}`}

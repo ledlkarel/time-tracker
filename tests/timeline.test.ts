@@ -93,18 +93,28 @@ it("renders a repeated-hour entry with positive duration and bounded geometry", 
     expect(segment?.height).toBeGreaterThan(0);
 });
 
-it("keeps short entries inside the grid and separates visual overlaps", () => {
+it.each([PIXELS_PER_HOUR, 10, 20])("keeps short entries inside the grid and separates visual overlaps at %s px/hour", (pixelsPerHour) => {
     process.env.TZ = "UTC";
     const positioned = layoutDayEntries([
         entry("2026-10-05T23:59:00Z", "2026-10-05T23:59:10Z", "1"),
         entry("2026-10-05T23:59:20Z", "2026-10-05T23:59:30Z", "2"),
-    ], "2026-10-05", 0);
+    ], "2026-10-05", 0, pixelsPerHour);
     expect(positioned).toHaveLength(2);
     expect(positioned.map((item) => item.column)).toEqual([0, 1]);
     for (const item of positioned) {
         expect(item.totalColumns).toBe(2);
-        expect(item.top + item.height).toBeLessThanOrEqual(DAY_HEIGHT);
+        expect(item.top + item.height).toBeLessThanOrEqual(24 * pixelsPerHour);
     }
+});
+
+it("scales entries to the available day height without changing durations", () => {
+    process.env.TZ = "UTC";
+    const positioned = layoutDayEntries([
+        entry("2026-10-05T09:00:00Z", "2026-10-05T10:30:00Z", "1"),
+        entry("2026-10-04T23:00:00Z", "2026-10-06T01:00:00Z", "2"),
+    ], "2026-10-05", 0, 20);
+    expect(positioned.find((item) => item.id === "1")).toMatchObject({ top: 180, height: 30, durationSeconds: 5400 });
+    expect(positioned.find((item) => item.id === "2")).toMatchObject({ top: 0, height: 480, durationSeconds: 86400 });
 });
 
 it("rejects invalid and reversed timestamps rather than rendering corrupt blocks", () => {
